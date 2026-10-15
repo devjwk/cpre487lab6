@@ -11,3 +11,7 @@ Packages
 .vscode/tasks.json
 .DS_Store
 __pycache__/
+
+# Lab 6 builds (one per SIMD setting) and Python caches
+build_*/
+workspace*/

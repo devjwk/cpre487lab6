@@ -29,6 +29,9 @@ const LayerData& Model::inferenceLayer(const LayerData& inData, const int layerN
     case Layer::InfType::NAIVE:
         layer.computeNaive(inData);
         break;
+    case Layer::InfType::REORDERED:
+        layer.computeReordered(inData);
+        break;
     case Layer::InfType::THREADED:
         layer.computeThreaded(inData);
         break;

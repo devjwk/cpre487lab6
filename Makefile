@@ -7,7 +7,8 @@ rwildcard=$(foreach d,$(wildcard $(1:=/*)),$(call rwildcard,$d,$2) $(filter $(su
 GCCVERSIONLTQ9 := $(shell expr `gcc -dumpversion | cut -f1 -d.` \< 9)
 
 DEBUG ?= true
-SIMD ?= false
+SIMD ?=
+ASM ?= false
 BDIR = build
 BIN = $(BDIR)
 SDIR = src
@@ -25,9 +26,17 @@ EXE_DEBUG = $(BIN)/ml_debug
 	CC_ALL = -Wall -Werror -pedantic -std=c++11
 	CC_DEBUG = -g -Og
 	CC_OPT_FLAGS = -O3
-	CC_SIMD_FLAGS = -march=native
-	CC_FLAGS = $(CC_ALL) $(CC_OPT_FLAGS) $(if $(filter $(SIMD), true), $(CC_SIMD_FLAGS),)
-	CC_DEBUG_FLAGS = $(CC_ALL) $(CC_DEBUG) $(if $(filter $(SIMD), true), $(CC_SIMD_FLAGS),)
+	# Lab 6: SIMD=none|sse2|avx|avx512|native (true = native). Without SIMD the compiler defaults apply
+	# (on x86-64 that already includes SSE2). none turns off auto-vectorization, so only scalar SSE (addss, mulss) is left.
+	SIMD_none = -fno-tree-vectorize -fno-tree-slp-vectorize
+	SIMD_sse2 = -msse2
+	SIMD_avx = -mavx
+	SIMD_avx512 = -mavx512f
+	SIMD_native = -march=native
+	SIMD_true = -march=native
+	CC_SIMD_FLAGS = $(SIMD_$(SIMD))
+	CC_FLAGS = $(CC_ALL) $(CC_OPT_FLAGS) $(CC_SIMD_FLAGS)
+	CC_DEBUG_FLAGS = $(CC_ALL) $(CC_DEBUG) $(CC_SIMD_FLAGS)
 
 
 # Mac support provided by Penny Mayer
@@ -95,6 +104,7 @@ $(BIN)/ml_debug: $(OBJS_DEBUG)
 $(BDIR)/%.o: $(SDIR)/%.cpp
 	mkdir -p $(dir $@)
 	$(CC_OS) $(CC_FLAGS) -c $(INC) -o $@ $< $(CFLAGS)
+	$(if $(filter $(ASM), true), $(CC_OS) $(CC_FLAGS) -S $(INC) -o $(@:.o=.s) $< $(CFLAGS),)
 
 # Debug support debugged by Joshua Deaton
 $(BDIR)/%_debug.o: $(SDIR)/%.cpp

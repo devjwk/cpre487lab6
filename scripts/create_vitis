@@ -47,6 +47,15 @@ app config -name $params(project_name) -add include-path "../src/framework"
 app config -name $params(project_name) -add include-path "../src/zedboard"
 
 app config -name $params(project_name) -add compiler-misc "-std=c++17 -O3"
+app config -name $params(project_name) -add define-compiler-symbols "ZED_ITERS=$params(zed_iters)"
+# Lab 6: Vitis compiles for the VFPv3 scalar FPU by default. NEON is the Cortex-A9 SIMD unit; GCC only
+# vectorizes float code for NEON with -funsafe-math-optimizations, because NEON flushes denormals to zero.
+if {[string is true $params(simd)]} {
+  app config -name $params(project_name) -add compiler-misc "-mfpu=neon -funsafe-math-optimizations"
+}
+if {[string is true $params(asm)]} {
+  app config -name $params(project_name) -add compiler-misc "-save-temps=obj"
+}
 app config -name $params(project_name) -add define-compiler-symbols "ZEDBOARD"
 app config -name $params(project_name) -add linker-misc "-Wl,--defsym=_HEAP_SIZE=0x8000000"
 

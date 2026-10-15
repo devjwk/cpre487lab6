@@ -56,10 +56,30 @@ class DenseLayer : public Layer {
         }
     }
 
-    // Only the naive implementation is required for this lab
-    virtual void computeThreaded(const LayerData& dataIn) const override { computeNaive(dataIn); }
-    virtual void computeTiled(const LayerData& dataIn) const override { computeNaive(dataIn); }
-    virtual void computeSIMD(const LayerData& dataIn) const override { computeNaive(dataIn); }
+    // Lab 6: n outer, m inner, so the weights (N, M) are read in storage order instead of with a stride of M
+    virtual void computeReordered(const LayerData& dataIn) const override {
+        const size N = getInputParams().dims[0];
+        const size M = getOutputParams().dims[0];
+
+        const fp32* in = (const fp32*)dataIn.raw();
+        const fp32* weights = (const fp32*)weightData.raw();
+        fp32* out = (fp32*)getOutputData().raw();
+
+        for (size m = 0; m < M; m++) out[m] = biasData.get<fp32>(m);
+        for (size n = 0; n < N; n++) {
+            const fp32 xv = in[n];
+            const fp32* wRow = weights + n * M;
+            for (size m = 0; m < M; m++) out[m] += xv * wRow[m];
+        }
+        if (applyRelu) {
+            for (size m = 0; m < M; m++) out[m] = out[m] > 0 ? out[m] : 0;
+        }
+    }
+
+    // The dense layers are under 1% of the MACs, so the other variants use the reordered loops
+    virtual void computeThreaded(const LayerData& dataIn) const override { computeReordered(dataIn); }
+    virtual void computeTiled(const LayerData& dataIn) const override { computeReordered(dataIn); }
+    virtual void computeSIMD(const LayerData& dataIn) const override { computeReordered(dataIn); }
 
    private:
     LayerParams weightParam;

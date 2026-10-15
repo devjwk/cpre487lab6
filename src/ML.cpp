@@ -1,6 +1,13 @@
+#include <cstdlib>
+#include <cstring>
+#include <iomanip>
 #include <iostream>
 #include <sstream>
 #include <vector>
+
+#ifndef ZEDBOARD
+#include <thread>
+#endif
 
 #include "Config.h"
 #include "Model.h"
@@ -302,6 +309,157 @@ void runTests() {
     std::cout << "\n\n----- ML::runTests() COMPLETE -----\n";
 }
 
+// ----- Lab 6 benchmark -----
+
+// Wall-clock time in ms with sub-ms resolution (the framework Timer rounds to whole ms on the ZedBoard)
+double nowMs() {
+#ifdef ZEDBOARD
+    XTime t;
+    XTime_GetTime(&t);
+    return (double)t * 1000.0 / COUNTS_PER_SECOND;
+#else
+    return std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now().time_since_epoch()).count();
+#endif
+}
+
+const char* infTypeName(const Layer::InfType infType) {
+    switch (infType) {
+    case Layer::InfType::NAIVE: return "naive";
+    case Layer::InfType::REORDERED: return "reordered";
+    case Layer::InfType::THREADED: return "threaded";
+    case Layer::InfType::TILED: return "tiled";
+    case Layer::InfType::SIMD: return "simd";
+    }
+    return "?";
+}
+
+// Load the test images and the final TensorFlow outputs once, so file I/O is not timed
+void loadTestSet(const Model& model, const Path& basePath, std::vector<LayerData>& images, std::vector<LayerData>& expected) {
+    for (std::size_t i = 0; i < NUM_TEST_IMAGES; i++) {
+        images.emplace_back(model[0].getInputParams(), basePath / ("image_" + std::to_string(i) + ".bin"));
+        images.back().loadData();
+        expected.emplace_back(model.getOutputLayer().getOutputParams(), referenceOutputPath(basePath, i, FINAL_REFERENCE));
+        expected.back().loadData();
+    }
+}
+
+// Run `iters` single-image inferences (cycling through the test images), timing every layer.
+// Prints one parseable line: BENCH mode=... block=... threads=... iters=... mean_ms=... min_ms=... conv2_ms=... pass=k/n
+// followed by the mean time of each layer. Every output is checked against TensorFlow.
+void runBenchmark(const Model& model, const Path& basePath, const Layer::InfType infType, const std::size_t iters) {
+    std::vector<LayerData> images, expected;
+    loadTestSet(model, basePath, images, expected);
+
+    const std::size_t numLayers = model.getNumLayers();
+    std::vector<double> layerMs(numLayers, 0.0);
+    double totalMs = 0.0, minMs = 1e30;
+    std::size_t passed = 0;
+
+    for (std::size_t it = 0; it < iters; it++) {
+        const std::size_t imageNum = it % NUM_TEST_IMAGES;
+        const double start = nowMs();
+        const LayerData* data = &images[imageNum];
+        for (std::size_t l = 0; l < numLayers; l++) {
+            const double layerStart = nowMs();
+            data = &model.inferenceLayer(*data, l, infType);
+            layerMs[l] += nowMs() - layerStart;
+        }
+        const double ms = nowMs() - start;
+        totalMs += ms;
+        minMs = std::min(minMs, ms);
+        if (data->maxDiff<fp32>(expected[imageNum]) < Config::EPSILON) passed++;
+    }
+
+    std::cout << std::fixed << std::setprecision(3) << "BENCH mode=" << infTypeName(infType) << " block=" << Config::TILE_SIZE
+              << " threads=" << Config::NUM_THREADS << " iters=" << iters << " mean_ms=" << totalMs / iters
+              << " min_ms=" << minMs << " conv2_ms=" << layerMs[1] / iters << " pass=" << passed << "/" << iters << std::endl;
+    std::cout << "LAYERS_MS";
+    for (std::size_t l = 0; l < numLayers; l++) std::cout << " " << layerMs[l] / iters;
+    std::cout << std::endl;
+}
+
+// Check every variant against the naive loops, layer by layer, on image 0.
+// Prints CHECK <mode> layer_max_diff=... and the result; reordered and threaded should be exactly 0.
+bool runVariantCheck(const Model& model, const Path& basePath) {
+    LayerData img(model[0].getInputParams(), basePath / "image_0.bin");
+    img.loadData();
+
+    std::vector<LayerData> reference;
+    const LayerData* data = &img;
+    for (std::size_t l = 0; l < model.getNumLayers(); l++) {
+        data = &model.inferenceLayer(*data, l, Layer::InfType::NAIVE);
+        reference.push_back(*data);
+    }
+
+    bool ok = true;
+    for (auto infType : {Layer::InfType::REORDERED, Layer::InfType::THREADED, Layer::InfType::TILED}) {
+        float worst = 0;
+        data = &img;
+        for (std::size_t l = 0; l < model.getNumLayers(); l++) {
+            data = &model.inferenceLayer(*data, l, infType);
+            worst = std::max(worst, data->maxDiff<fp32>(reference[l]));
+        }
+        ok = ok && worst < Config::EPSILON;
+        std::cout << "CHECK " << infTypeName(infType) << " layer_max_diff=" << worst << (worst < Config::EPSILON ? " OK" : " FAIL")
+                  << std::endl;
+    }
+    return ok;
+}
+
+#ifndef ZEDBOARD
+// Throughput: `workers` threads, each with its own copy of the model (the layers own their output buffers),
+// share `iters` inferences of the given type. Prints THROUGHPUT ... img_per_s=...
+void runThroughput(const Path& basePath, const Layer::InfType infType, const std::size_t iters, const std::size_t workers) {
+    std::vector<Model> models;
+    for (std::size_t w = 0; w < workers; w++) {
+        models.push_back(buildToyModel(basePath / "model"));
+        models.back().allocLayers();
+    }
+    std::vector<LayerData> images, expected;
+    loadTestSet(models[0], basePath, images, expected);
+
+    std::vector<std::size_t> passed(workers, 0);
+    std::vector<std::thread> pool;
+    const double start = nowMs();
+    for (std::size_t w = 0; w < workers; w++) {
+        pool.emplace_back([&, w]() {
+            for (std::size_t it = w; it < iters; it += workers) {
+                const LayerData& out = models[w].inference(images[it % NUM_TEST_IMAGES], infType);
+                if (out.maxDiff<fp32>(expected[it % NUM_TEST_IMAGES]) < Config::EPSILON) passed[w]++;
+            }
+        });
+    }
+    for (auto& thread : pool) thread.join();
+    const double ms = nowMs() - start;
+
+    std::size_t totalPassed = 0;
+    for (auto p : passed) totalPassed += p;
+    std::cout << std::fixed << std::setprecision(3) << "THROUGHPUT mode=" << infTypeName(infType) << " workers=" << workers
+              << " conv_threads=" << Config::NUM_THREADS << " iters=" << iters << " total_ms=" << ms
+              << " img_per_s=" << iters * 1000.0 / ms << " pass=" << totalPassed << "/" << iters << std::endl;
+}
+#endif
+
+#ifndef ZED_ITERS
+#define ZED_ITERS 100
+#endif
+
+// ZedBoard has no command line: run the whole section 3.1 sweep (before/after reordering, block sizes)
+void runZedboardSweep() {
+    Path basePath("data");
+    Model model = buildToyModel(basePath / "model");
+    model.allocLayers();
+
+    runVariantCheck(model, basePath);
+    runBenchmark(model, basePath, Layer::InfType::NAIVE, ZED_ITERS);
+    runBenchmark(model, basePath, Layer::InfType::REORDERED, ZED_ITERS);
+    for (std::size_t block : {2, 4, 8, 16, 32}) {
+        Config::TILE_SIZE = block;
+        runBenchmark(model, basePath, Layer::InfType::TILED, ZED_ITERS);
+    }
+    std::cout << "\n\n----- ML::runZedboardSweep() COMPLETE -----\n";
+}
+
 } // namespace ML
 
 #ifdef ZEDBOARD
@@ -312,7 +470,7 @@ int main() {
         if (f_mount(&fatfs, "/", 1) != FR_OK) {
             throw std::runtime_error("Failed to mount SD card. Is it plugged in?");
         }
-        ML::runTests();
+        ML::runZedboardSweep();
     } catch (const std::exception& e) {
         std::cerr << "\n\n----- EXCEPTION THROWN -----\n" << e.what() << '\n';
     }
@@ -320,7 +478,56 @@ int main() {
     FileServer::start_file_transfer_server();
 }
 #else
-int main() {
-    ML::runTests();
+// Usage:
+//   ml                                                     layer-by-layer tests from Lab 2
+//   ml check                                               every variant vs. the naive loops, layer by layer
+//   ml bench <naive|reordered|tiled|threaded|simd> [iters=100] [block=16] [threads=8]
+//   ml throughput <mode> [iters=300] [workers=8] [conv_threads=1]
+int main(int argc, char** argv) {
+    if (argc == 2 && std::strcmp(argv[1], "check") == 0) {
+        ML::Model model = ML::buildToyModel(ML::Path("data") / "model");
+        model.allocLayers();
+        for (std::size_t threads : {3, 64}) {  // uneven split, and more threads than some layers have rows
+            ML::Config::NUM_THREADS = threads;
+            for (std::size_t block : {2, 5, 32}) {  // 5 does not divide the channel counts
+                ML::Config::TILE_SIZE = block;
+                if (!ML::runVariantCheck(model, "data")) return 1;
+            }
+        }
+        return 0;
+    }
+    if (argc < 3) {
+        ML::runTests();
+        return 0;
+    }
+
+    using ML::Layer;
+    const std::string mode = argv[2];
+    Layer::InfType infType;
+    if (mode == "naive") infType = Layer::InfType::NAIVE;
+    else if (mode == "reordered") infType = Layer::InfType::REORDERED;
+    else if (mode == "tiled") infType = Layer::InfType::TILED;
+    else if (mode == "threaded") infType = Layer::InfType::THREADED;
+    else if (mode == "simd") infType = Layer::InfType::SIMD;
+    else {
+        std::cerr << "Unknown mode " << mode << std::endl;
+        return 1;
+    }
+    auto arg = [&](int i, std::size_t fallback) { return argc > i ? (std::size_t)std::strtoul(argv[i], nullptr, 10) : fallback; };
+
+    ML::Path basePath("data");
+    if (std::strcmp(argv[1], "bench") == 0) {
+        ML::Config::TILE_SIZE = arg(4, 16);
+        ML::Config::NUM_THREADS = arg(5, 8);
+        ML::Model model = ML::buildToyModel(basePath / "model");
+        model.allocLayers();
+        ML::runBenchmark(model, basePath, infType, arg(3, 100));
+    } else if (std::strcmp(argv[1], "throughput") == 0) {
+        ML::Config::NUM_THREADS = arg(5, 1);
+        ML::runThroughput(basePath, infType, arg(3, 300), arg(4, 8));
+    } else {
+        std::cerr << "Unknown command " << argv[1] << std::endl;
+        return 1;
+    }
 }
 #endif

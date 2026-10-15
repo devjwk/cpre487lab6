@@ -124,7 +124,7 @@ class LayerData {
 class Layer {
    public:
     // Inference Type
-    enum class InfType { NAIVE, THREADED, TILED, SIMD };
+    enum class InfType { NAIVE, REORDERED, THREADED, TILED, SIMD };
 
     // Layer Type
     enum class LayerType { NONE, CONVOLUTIONAL, DENSE, SOFTMAX, MAX_POOLING };
@@ -157,6 +157,9 @@ class Layer {
     virtual void computeThreaded(const LayerData& dataIn) const = 0;
     virtual void computeTiled(const LayerData& dataIn) const = 0;
     virtual void computeSIMD(const LayerData& dataIn) const = 0;
+
+    // Lab 6: cache-friendly loop order; layers without one fall back to the naive loops
+    virtual void computeReordered(const LayerData& dataIn) const { computeNaive(dataIn); }
 
    private:
     LayerParams inParams;
