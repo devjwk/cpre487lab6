@@ -163,15 +163,66 @@ Flags (all with -O3, `DEBUG=false` equivalent; `make SIMD=<x>`):
 | AVX | 61.58 | **7.72** | **3.84** (reordered) |
 | -march=native (AVX2 + FMA) | 101.52 | 8.25 | 3.60 (reordered) |
 
-Single-threaded, mean of 100 inferences, all 100/100 correct. The flags only help the reordered loops, whose inner `o[m] += x * w[m]` vectorizes: 4 lanes (SSE2) give 2.6×, 8 lanes (AVX) 3.8×. The naive loops are a reduction into one sum over strided weights and stay scalar; with `-march=native` they get *slower* (58 → 102 ms), which the assembly has to explain (likely the compiler gathering the stride-32 weights with AVX2 `vgatherdps`). **TODO(lab): confirm from `asm_native.s`.**
+Single-threaded, mean of 100 inferences, all 100/100 correct. The flags only help the reordered loops, whose inner `o[m] += x * w[m]` vectorizes: 4 lanes (SSE2) give 2.6×, 8 lanes (AVX) 3.8×. The naive loops are a reduction into one sum over strided weights and stay scalar; with `-march=native` they get *slower* (58 → 102 ms), which the assembly below explains (fused multiply-add on a dependency chain).
 
 Run-to-run noise: the same `build_sse2` reordered binary measured 9.55 ms (tiling run), 11.41 ms (SIMD run) and 13.70 ms (1 thread in the thread run). On this hybrid CPU a single-threaded process may land on a P-core or an E-core, and turbo clocks vary, so single-thread comparisons are only good to roughly ±20%.
 
 ![SIMD flags](results/plots/simd_x86.png)
 
-**Assembly.** `python3 scripts/plot_lab6.py` counts the floating-point instructions in each `build_<simd>/layers/Convolutional.s` and prints the inner loop around the widest one. Expected (checked with clang on the Mac by cross-compiling for x86-64; the report must use the lab computer's g++ output): No SIMD has only scalar `mulss`/`addss`; SSE2's inner loop of the reordered kernel becomes `movups` + `mulps` + `addps` on `%xmm` (4 floats per instruction); AVX uses `vmulps`/`vaddps` on `%ymm` (8 floats); `-march=native` adds AVX2/FMA, but GCC in ISO mode (`-std=c++11`) keeps `-ffp-contract=off`, so expect separate `vmulps`/`vaddps` on `%ymm` rather than `vfmadd231ps` (clang did fuse them for AVX-512). The naive loop's single-accumulator reduction stays scalar in every setting, which is why the flags barely change the naive time. Lane counts give the ideal speedups (4×, 8×); memory bandwidth and the scalar code outside conv inner loops keep the measured ones lower.
+**Assembly** (g++ on co2050-18, `results/x86/asm_<simd>.s`; `python3 scripts/plot_lab6.py` counts the FP instructions and prints these loops). The inner loop of the reordered kernel, `o[m] += x * w[m]`, in each configuration (g++ unrolls c by 2, so each iteration handles two weight rows):
 
-**Snippets: TODO(lab)** (paste from the `plot_lab6.py` output for each configuration).
+| Setting | Instructions per iteration | Floats per iteration |
+|---|---|---|
+| No SIMD | `movss` + `mulss` + `addss` (scalar) | 1 |
+| SSE2 | 2 × `mulps`, 2 × `addps`, `movups` on `%xmm` | 4 (× 2 rows) |
+| AVX | 2 × `vmulps`, 2 × `vaddps`, `vmovups` on `%ymm` | 8 (× 2 rows) |
+| -march=native | `vfmadd213ps` + `vfmadd231ps` on `%ymm` | 8 (× 2 rows), multiply and add fused |
+
+```asm
+# No SIMD (asm_none.s): one float per instruction
+	movss	(%r8,%rsi,4), %xmm0
+	mulss	(%rdi,%rcx,4), %xmm0
+	addss	%xmm0, %xmm1
+
+# SSE2 (asm_sse2.s, .L51): 4 floats per instruction
+	movups	(%r8,%rax), %xmm0
+	movups	(%r9,%rax), %xmm2
+	movups	(%rcx,%rax), %xmm6
+	mulps	%xmm4, %xmm0
+	mulps	%xmm3, %xmm2
+	addps	%xmm6, %xmm0
+	addps	%xmm2, %xmm0
+	movups	%xmm0, (%rcx,%rax)
+	addq	$16, %rax
+
+# AVX (asm_avx.s, .L52): 8 floats per instruction
+	vmulps	(%rcx,%rdx), %ymm3, %ymm1
+	vmulps	(%rsi,%rdx), %ymm4, %ymm0
+	vaddps	(%r15,%rdx), %ymm0, %ymm0
+	vaddps	%ymm1, %ymm0, %ymm0
+	vmovups	%ymm0, (%r15,%rdx)
+	addq	$32, %rdx
+
+# -march=native (asm_native.s, .L52): 8 fused multiply-adds per instruction
+	vmovups	(%rdx,%rax), %ymm0
+	vfmadd213ps	(%r14,%rax), %ymm2, %ymm0
+	vfmadd231ps	(%rcx,%rax), %ymm1, %ymm0
+	vmovups	%ymm0, (%r14,%rax)
+	addq	$32, %rax
+```
+
+Quantifying it: the pointer step (`addq $16` → `$32`) is the number of bytes per iteration, so SSE2 does 4× and AVX 8× the scalar work per instruction. Measured speedups on the reordered loops are 2.6× (SSE2) and 3.8× (AVX), about 65% and 48% of the lane count: each multiply-add also needs a load of the weight and a load and store of the partial sum, so the loop is limited by L1 load/store bandwidth rather than by arithmetic, and the scalar code outside the conv inner loops (pooling, dense, softmax, loop control) does not speed up. FMA (`-march=native`) halves the arithmetic instructions again but leaves the loads and stores, so it is no faster than AVX (8.25 vs 7.72 ms, within the run-to-run noise).
+
+**Why the naive loops get slower with `-march=native`.** They are a reduction into a single `sum` over stride-32 weights, which g++ does not vectorize at any setting (no `ps` instructions in their loop). With `-march=native` the scalar `mulss` + `addss` become one `vfmadd231ss` (`asm_native.s`, `.L10`):
+
+```asm
+# SSE2 build, naive inner loop (.L10)          # -march=native build, naive inner loop (.L10)
+	movss	(%r8,%rsi,4), %xmm0             	vmovss	(%rdi,%rsi,4), %xmm2
+	mulss	(%rdi,%rcx,4), %xmm0            	vfmadd231ss	(%r8,%rcx,4), %xmm2, %xmm0
+	addss	%xmm0, %xmm1
+```
+
+Every iteration adds into the same register, so the loop runs at the latency of the instruction on that chain. In the SSE2 build only `addss` is on the chain (the multiply of the next element runs in parallel), and the i7-12700's Golden Cove P-cores have dedicated fast adders with a shorter latency (2–3 cycles) than an FMA (4 cycles). In the native build the whole `vfmadd231ss` is on the chain. A longer chain latency per MAC is consistent with the measured 58 → 102 ms (1.75×); the exact cycle counts are from Intel's published Golden Cove figures, not measured here. Fusing is a win only when the loop is not one long dependency chain, as in the reordered kernel.
 
 ### ZedBoard SIMD (NEON)
 
