@@ -4,7 +4,7 @@ Iowa State University · CprE 487/587 · Lab 6 · Team 06
 
 The Lab 2 C++ inference framework ([devjwk/cpre487lab2](https://github.com/devjwk/cpre487lab2), commit `38761dd`), made faster on CPUs: a cache-friendly loop order, cache tiling, threads, and SIMD compiler flags. Every variant is checked against the naive loops layer by layer and against the TensorFlow output of every timed inference. The handout is [`CprE487_587_Lab6.pdf`](CprE487_587_Lab6.pdf); the sections below follow its highlighted items.
 
-> **Status (2026-10-14).** Code, scripts and the access-pattern charts are done and checked on a Mac (Apple M3, clang). The measurements the handout asks for have to come from the lab computer (x86, g++) and the ZedBoard. Lab computer results are in (co2050-18, 2026-11-03); places still waiting for ZedBoard numbers are marked <!-- TEMPLATE --> **TODO(lab)**.
+> **Status (2026-11-03).** Lab computer (co2050-18, g++) and ZedBoard VFP measurements are in, 100 inferences per configuration, all matching TensorFlow. Still waiting: the ZedBoard NEON run (§3.3, marked <!-- TEMPLATE --> **TODO(lab)**), the report PDF and the code archive.
 
 ## What changed from Lab 2
 
@@ -97,7 +97,7 @@ How the charts show the reuse: the reordered weight trace is one straight line o
 
 | Machine | Naive (ms) | Reordered (ms) | Speedup | conv2 naive → reordered (ms) |
 |---|---|---|---|---|
-| ZedBoard | **TODO(lab)** | **TODO(lab)** | | |
+| ZedBoard (VFP, default build) | 2,272.1 | 1,960.2 | 1.16× | 1,356.0 → 1,195.9 |
 | Lab computer (co2050-18, i7-12700) | 58.23 | 9.55 | 6.1× | 33.77 → 6.11 |
 | *Mac M3 (dev check only)* | *101.5* | *13.1* | *7.7×* | *65.3 → 8.9* |
 
@@ -107,17 +107,25 @@ How the charts show the reuse: the reordered weight trace is one straight line o
 
 | Version | Block | ZedBoard (ms) | Speedup vs naive | Speedup vs reordered |
 |---|---|---|---|---|
-| Naive | — | **TODO(lab)** | 1.00 | |
-| Reordered (non-tiled) | — | | | 1.00 |
-| Tiled | 2 | | | |
-| Tiled | 4 | | | |
-| Tiled | 8 | | | |
-| Tiled | 16 | | | |
-| Tiled | 32 | | | |
+| Naive (non-tiled, not reordered) | — | 2,272.1 | 1.00 | 0.86 |
+| Reordered (non-tiled) | — | **1,960.2** | **1.16** | 1.00 |
+| Tiled | 2 | 5,310.7 | 0.43 | 0.37 |
+| Tiled | 4 | 3,653.1 | 0.62 | 0.54 |
+| Tiled | 8 | 2,894.6 | 0.78 | 0.68 |
+| Tiled | 16 | 2,346.1 | 0.97 | 0.84 |
+| Tiled | 32 | 2,200.7 | 1.03 | 0.89 |
+
+Mean of 100 single-image inferences each (cycling through the 3 test images), default Vitis build (-O3, scalar VFPv3); every output matched TensorFlow (100/100). Raw log: `results/zedboard/sweep.txt`.
+
+**Optimal block size: 32**, the largest, and no block size beats the non-tiled reordered loops on the ZedBoard. Latency falls steadily as B grows (5.31 s → 2.20 s). Why:
+
+- **The core is compute-bound, not miss-bound.** Converting conv2's time into cycles per MAC (time × 667 MHz ÷ 80.3 M MACs) gives 11.3 cycles for naive, 9.9 reordered, 11.8 tiled B=16 and 11.1 B=32. All variants sit near 10 cycles per MAC, far above what L1 misses alone would cost if the scalar VFP pipeline were idle; conv2's 100 KB of weights also fit in the 512 KB L2, so most "misses" are L2 hits. Tiling to keep the weight tile in L1 removes a cost that is already small.
+- **Each tiled MAC pays more overhead.** The inner loop runs only B iterations (2 at B=2), so loop control and address arithmetic are spread over very few MACs, and the 32 partial sums of each pixel are loaded and stored again for every input-channel block (C/B times). Both shrink as B grows, which is the steady improvement in the chart.
+- **B=32 is still 12% slower than the reordered loops** because it does the same work plus separate passes that write the biases first and apply ReLU last over the whole output (2 × 392 KB for conv2).
+
+The reordering itself gains only 1.16× here (6.1× on x86): it moves the accumulator from a register (naive: `sum`) into memory (reordered: `o[m]`, one load and one store per MAC), which a scalar in-order Cortex-A9 pays for with its single load/store pipe, while on x86 the same loop vectorizes (§3.3).
 
 ![Tiling on the ZedBoard](results/plots/tiling_zedboard.png)
-
-**Optimal block size:** **TODO(lab)**. What to look for: B=2 and 4 run a 2–4 iteration inner loop with the loop overhead and partial-sum reloads dominating; B=16 is the largest block whose weight tile (25,600 B) fits in the 32 KB L1 data cache next to the input and output lines; B=32 no longer fits and falls back to L2. On the Mac (128 KB L1, dev check) no block size beat the reordered loops, because conv2's 100 KB of weights already fit in L1 there.
 
 On the lab computer (default -O3) tiling also never beats the reordered loops: 106.9 / 49.2 / 32.8 / 21.2 / 13.9 ms for B = 2 / 4 / 8 / 16 / 32, against 9.55 ms reordered and 58.2 ms naive. The i7-12700's 1.25 MB L2 per P-core holds all of conv2's weights, so blocking saves no misses there and only adds the shorter inner loops and the C/B reloads of the partial sums; latency falls monotonically as B grows (`results/plots/tiling_x86.png`).
 
