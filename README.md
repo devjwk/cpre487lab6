@@ -4,7 +4,7 @@ Iowa State University · CprE 487/587 · Lab 6 · Team 06
 
 The Lab 2 C++ inference framework ([devjwk/cpre487lab2](https://github.com/devjwk/cpre487lab2), commit `38761dd`), made faster on CPUs: a cache-friendly loop order, cache tiling, threads, and SIMD compiler flags. Every variant is checked against the naive loops layer by layer and against the TensorFlow output of every timed inference. The handout is [`CprE487_587_Lab6.pdf`](CprE487_587_Lab6.pdf); the sections below follow its highlighted items.
 
-> **Status (2026-10-14).** Code, scripts and the access-pattern charts are done and checked on a Mac (Apple M3, clang). The measurements the handout asks for have to come from the lab computer (x86, g++) and the ZedBoard. Places waiting for those numbers are marked <!-- TEMPLATE --> **TODO(lab)**.
+> **Status (2026-10-14).** Code, scripts and the access-pattern charts are done and checked on a Mac (Apple M3, clang). The measurements the handout asks for have to come from the lab computer (x86, g++) and the ZedBoard. Lab computer results are in (co2050-18, 2026-11-03); places still waiting for ZedBoard numbers are marked <!-- TEMPLATE --> **TODO(lab)**.
 
 ## What changed from Lab 2
 
@@ -98,7 +98,7 @@ How the charts show the reuse: the reordered weight trace is one straight line o
 | Machine | Naive (ms) | Reordered (ms) | Speedup | conv2 naive → reordered (ms) |
 |---|---|---|---|---|
 | ZedBoard | **TODO(lab)** | **TODO(lab)** | | |
-| Lab computer | **TODO(lab)** | **TODO(lab)** | | |
+| Lab computer (co2050-18, i7-12700) | 58.23 | 9.55 | 6.1× | 33.77 → 6.11 |
 | *Mac M3 (dev check only)* | *101.5* | *13.1* | *7.7×* | *65.3 → 8.9* |
 
 ### 3.1.3 Tiling
@@ -119,23 +119,30 @@ How the charts show the reuse: the reordered weight trace is one straight line o
 
 **Optimal block size:** **TODO(lab)**. What to look for: B=2 and 4 run a 2–4 iteration inner loop with the loop overhead and partial-sum reloads dominating; B=16 is the largest block whose weight tile (25,600 B) fits in the 32 KB L1 data cache next to the input and output lines; B=32 no longer fits and falls back to L2. On the Mac (128 KB L1, dev check) no block size beat the reordered loops, because conv2's 100 KB of weights already fit in L1 there.
 
+On the lab computer (default -O3) tiling also never beats the reordered loops: 106.9 / 49.2 / 32.8 / 21.2 / 13.9 ms for B = 2 / 4 / 8 / 16 / 32, against 9.55 ms reordered and 58.2 ms naive. The i7-12700's 1.25 MB L2 per P-core holds all of conv2's weights, so blocking saves no misses there and only adds the shorter inner loops and the C/B reloads of the partial sums; latency falls monotonically as B grows (`results/plots/tiling_x86.png`).
+
 ## 3.2 Multi-threading (lab computer only)
 
 `computeThreaded` splits the P·Q output pixels of each convolution into `NUM_THREADS` equal ranges and runs `convPixels` (the reordered loops) on each with `std::thread`. Threads write disjoint outputs and only read shared data, so no locks are needed. Splitting pixels instead of rows lets 64 threads still get work in conv6 (8×8 = 64 pixels). The threads are created and joined inside every conv layer call, so their start-up cost is part of the measured latency.
 
 | Threads | -O3 (ms) | Speedup | -O3 -march=native (ms) | Speedup vs 1 thread -O3 |
 |---|---|---|---|---|
-| 1 | **TODO(lab)** | 1.00 | | |
-| 2 | | | | |
-| 4 | | | | |
-| 8 | | | | |
-| 16 | | | | |
-| 32 | | | | |
-| 64 | | | | |
+| 1 | 13.70 | 1.00 | 12.53 | 1.09 |
+| 2 | 8.64 | 1.58 | 7.71 | 1.78 |
+| 4 | 4.71 | 2.91 | 4.23 | 3.24 |
+| 8 | 2.84 | 4.83 | 2.42 | 5.67 |
+| 12 | 2.54 | 5.39 | 2.21 | 6.21 |
+| **16** | **2.34** | **5.86** | **2.06** | **6.64** |
+| 20 | 2.46 | 5.58 | 2.25 | 6.08 |
+| 24 | 2.83 | 4.85 | 2.47 | 5.55 |
+| 32 | 3.08 | 4.45 | 2.77 | 4.94 |
+| 64 | 5.06 | 2.71 | 4.94 | 2.77 |
+
+Mean of 100 inferences each; every output matched TensorFlow (100/100).
 
 ![Latency vs threads](results/plots/threads_x86.png)
 
-**Optimal number of threads:** **TODO(lab)**. Hardware to reason with (`results/x86/cpu.txt`): the lab computer co2050-05 has an Intel i7-12700 with 8 performance cores (2 hardware threads each) and 4 efficiency cores, 20 hardware threads in all. The work per call is small (conv2 is ~80 M MACs, a few ms single-threaded), so past the number of physical cores extra threads add creation and scheduling cost without adding execution units; hyper-threads share a core's vector units, and an even split leaves the threads on slower E-cores as the stragglers.
+**Optimal number of threads: 16** (2.06 ms with `-march=native`, 6.6× over one thread at -O3). Latency drops almost linearly up to 8 threads (one per P-core), gains little from 8 to 16, and rises after 20. Hardware (`results/x86/cpu.txt`): the lab computer co2050-18 has an Intel i7-12700 with 8 performance cores (2 hardware threads each) and 4 efficiency cores, 20 hardware threads in all. The work per call is small (conv2 is ~80 M MACs, a few ms single-threaded), so past the number of physical cores extra threads add creation and scheduling cost without adding execution units; hyper-threads share a core's vector units, and an even split leaves the threads on slower E-cores as the stragglers. conv2 alone keeps speeding up to 32 threads (0.73 ms), but the small late layers (conv5: 100 pixels, conv6: 64) cannot use that many threads, and every conv layer pays to create and join them, so the whole inference is fastest at 16. At 64 threads creating and joining them costs about 0.5 ms per conv layer call (4.94 − 2.06 ms spread over 6 conv layers), more than the work it splits.
 
 ## 3.3 SIMD
 
@@ -151,10 +158,14 @@ Flags (all with -O3, `DEBUG=false` equivalent; `make SIMD=<x>`):
 
 | Setting | Naive loops (ms) | Reordered loops (ms) | Speedup vs No SIMD |
 |---|---|---|---|
-| No SIMD | **TODO(lab)** | | |
-| SSE2 | | | |
-| AVX | | | |
-| -march=native | | | |
+| No SIMD | 58.00 | 29.69 | 1.00 |
+| SSE2 (= default) | 58.24 | 11.41 | 2.60 (reordered) |
+| AVX | 61.58 | **7.72** | **3.84** (reordered) |
+| -march=native (AVX2 + FMA) | 101.52 | 8.25 | 3.60 (reordered) |
+
+Single-threaded, mean of 100 inferences, all 100/100 correct. The flags only help the reordered loops, whose inner `o[m] += x * w[m]` vectorizes: 4 lanes (SSE2) give 2.6×, 8 lanes (AVX) 3.8×. The naive loops are a reduction into one sum over strided weights and stay scalar; with `-march=native` they get *slower* (58 → 102 ms), which the assembly has to explain (likely the compiler gathering the stride-32 weights with AVX2 `vgatherdps`). **TODO(lab): confirm from `asm_native.s`.**
+
+Run-to-run noise: the same `build_sse2` reordered binary measured 9.55 ms (tiling run), 11.41 ms (SIMD run) and 13.70 ms (1 thread in the thread run). On this hybrid CPU a single-threaded process may land on a P-core or an E-core, and turbo clocks vary, so single-thread comparisons are only good to roughly ±20%.
 
 ![SIMD flags](results/plots/simd_x86.png)
 
@@ -178,10 +189,14 @@ The best single-image latency combines the reordered loops, `-march=native`, and
 
 | | Lab computer | TensorBoard (Lab 1) |
 |---|---|---|
-| Best latency | **TODO(lab)** ms (threads = ?) | 56.3 ms per online `model.predict` call; 1.78 ms of it is the layers' own ops |
-| Best throughput (≥100 images) | **TODO(lab)** img/s (workers = ?) | 842 img/s at batch 200 (1.19 ms per image) |
+| Best latency | **2.06 ms** (reordered, `-march=native`, 16 threads, 100 images) | 56.3 ms per online `model.predict` call; 1.78 ms of it is the layers' own ops |
+| Best throughput (≥100 images) | **1,141 img/s** (32 workers, one model each, 1,000 images) | 842 img/s at batch 200 (1.19 ms per image) |
 
-Lab 1's TensorBoard profile measured 0.58 ms of operator time per image at batch 200 (the fastest recorded). **TODO(lab):** compare.
+Lab 1's TensorBoard profile measured 0.58 ms of operator time per image at batch 200 (the fastest recorded).
+
+- **Latency:** 2.06 ms is 27× faster than TensorFlow's online `model.predict` call (56.3 ms, mostly Python and framework overhead) and close to the 1.78 ms TensorFlow's kernels themselves need for one image.
+- **Throughput:** 1,141 img/s beats TensorFlow's best batched throughput (842 img/s), but the time per image, 0.88 ms (1,000 / 1,141 img/s), is still above TensorFlow's 0.58 ms of operator time at batch 200: its oneDNN kernels use blocked layouts, FMA and register tiling across images that a plain loop nest does not.
+- Throughput scales almost linearly to 8 workers (879 img/s, one per P-core), then slowly to 1,124 img/s at 20 (all hardware threads) and 1,141 at 32.
 
 ## Not done
 

@@ -170,7 +170,8 @@ ASM_PATTERNS = {
 
 def asm_summary():
     """Count FP instructions in each Convolutional.s and print a snippet around the widest one."""
-    files = sorted(ROOT.glob("build_*/layers/Convolutional.s")) + sorted((RES / "zedboard").glob("asm_*.s"))
+    files = (sorted(ROOT.glob("build_*/layers/Convolutional.s")) + sorted((RES / "x86").glob("asm_*.s"))
+             + sorted((RES / "zedboard").glob("asm_*.s")))
     if not files:
         return
     rows = []
