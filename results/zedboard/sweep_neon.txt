@@ -1,0 +1,110 @@
+make: Entering directory '/home/jwk0425/jwk_personal_lab/lab6/workspace/neon/mlp/Debug'
+make: 'mlp.elf' is up to date.
+make: Leaving directory '/home/jwk0425/jwk_personal_lab/lab6/workspace/neon/mlp/Debug'
+Connecting to hardware server
+No hardware server running, starting a local hardware server instead
+attempting to launch hw_server
+
+****** Xilinx hw_server v2020.1
+  **** Build date : May 27 2020 at 20:33:44
+    ** Copyright 1986-2020 Xilinx, Inc. All Rights Reserved.
+
+INFO: hw_server application started
+INFO: Use Ctrl-C to exit hw_server application
+
+INFO: To connect to this hw_server instance use url: TCP:127.0.0.1:3121
+
+Flashing fpga
+INFO: [Hsi 55-2053] elapsed time for repository (/remote/Xilinx/2020.1/Vitis/2020.1/data/embeddedsw) loading 0 seconds
+Done
+Reading from UART, press Ctrl-C to stop
+[[36mInfo[39m]: --- Building Toy Model ---
+xsdb% Opened binary file data/model/conv1_weights.bin
+xsdb% Opened binary file data/model/conv1_biases.bin
+xsdb% Opened binary file data/model/conv2_weights.bin
+xsdb% Opened binary file data/model/conv2_biases.bin
+xsdb% Opened binary file data/model/conv3_weights.bin
+xsdb% Opened binary file data/model/conv3_biases.bin
+xsdb% Opened binary file data/model/conv4_weights.bin
+xsdb% Opened binary file data/model/conv4_biases.bin
+xsdb% Opened binary file data/model/conv5_weights.bin
+xsdb% Opened binary file data/model/conv5_biases.bin
+xsdb% Opened binary file data/model/conv6_weights.bin
+xsdb% Opened binary file data/model/conv6_biases.bin
+xsdb% Opened binary file data/model/dense1_weights.bin
+xsdb% Opened binary file data/model/dense1_biases.bin
+xsdb% Opened binary file data/model/dense2_weights.bin
+xsdb% Opened binary file data/model/dense2_biases.bin
+xsdb% Opened binary file data/image_0.bin
+xsdb% CHECK reordered layer_max_diff=3.8147e-06 OK
+xsdb% CHECK threaded layer_max_diff=3.8147e-06 OK
+xsdb% CHECK tiled layer_max_diff=4.76837e-06 OK
+xsdb% Opened binary file data/image_0.bin
+xsdb% Opened binary file data/image_0_data/layer_11_output.bin
+xsdb% Opened binary file data/image_1.bin
+xsdb% Opened binary file data/image_1_data/layer_11_output.bin
+xsdb% Opened binary file data/image_2.bin
+xsdb% Opened binary file data/image_2_data/layer_11_output.bin
+xsdb% BENCH mode=naive block=16 threads=8 iters=100 mean_ms=3436.382 min_ms=3436.187 conv2_ms=2136.189 pass=100/100
+xsdb% LAYERS_MS 203.395 2136.189 2.059 317.124 532.026 0.715 92.220 118.489 0.158 0.036 33.364 0.579 0.025
+xsdb% Opened binary file data/image_0.bin
+xsdb% Opened binary file data/image_0_data/layer_11_output.bin
+xsdb% Opened binary file data/image_1.bin
+xsdb% Opened binary file data/image_1_data/layer_11_output.bin
+xsdb% Opened binary file data/image_2.bin
+xsdb% Opened binary file data/image_2_data/layer_11_output.bin
+xsdb% BENCH mode=reordered block=16 threads=8 iters=100 mean_ms=1026.712 min_ms=1026.534 conv2_ms=653.676 pass=100/100
+xsdb% LAYERS_MS 62.295 653.676 2.146 94.408 147.061 0.749 25.604 33.772 0.165 0.036 6.177 0.597 0.024
+xsdb% Opened binary file data/image_0.bin
+xsdb% Opened binary file data/image_0_data/layer_11_output.bin
+xsdb% Opened binary file data/image_1.bin
+xsdb% Opened binary file data/image_1_data/layer_11_output.bin
+xsdb% Opened binary file data/image_2.bin
+xsdb% Opened binary file data/image_2_data/layer_11_output.bin
+xsdb% BENCH mode=tiled block=2 threads=8 iters=100 mean_ms=6606.348 min_ms=6605.846 conv2_ms=4104.065 pass=100/100
+xsdb% LAYERS_MS 324.501 4104.065 2.590 641.539 1092.751 0.941 189.407 243.498 0.203 0.033 6.194 0.600 0.024
+xsdb% Opened binary file data/image_0.bin
+xsdb% Opened binary file data/image_0_data/layer_11_output.bin
+xsdb% Opened binary file data/image_1.bin
+xsdb% Opened binary file data/image_1_data/layer_11_output.bin
+xsdb% Opened binary file data/image_2.bin
+xsdb% Opened binary file data/image_2_data/layer_11_output.bin
+xsdb% BENCH mode=tiled block=4 threads=8 iters=100 mean_ms=4513.740 min_ms=4513.249 conv2_ms=2776.284 pass=100/100
+xsdb% LAYERS_MS 220.580 2776.284 2.590 427.486 781.029 0.941 135.655 162.118 0.203 0.033 6.196 0.599 0.024
+xsdb% Opened binary file data/image_0.bin
+xsdb% Opened binary file data/image_0_data/layer_11_output.bin
+xsdb% Opened binary file data/image_1.bin
+xsdb% Opened binary file data/image_1_data/layer_11_output.bin
+xsdb% Opened binary file data/image_2.bin
+xsdb% Opened binary file data/image_2_data/layer_11_output.bin
+xsdb% BENCH mode=tiled block=8 threads=8 iters=100 mean_ms=1733.702 min_ms=1733.237 conv2_ms=1055.289 pass=100/100
+LAYERS_MS 90.592 1055.289 2.590 160.976 298.759 0.941 51.922 65.575 0.203 0.033 6.197 0.599 0.024
+xsdb% Opened binary file data/image_0.bin
+xsdb% Opened binary file data/image_0_data/layer_11_output.bin
+xsdb% Opened binary file data/image_1.bin
+xsdb% Opened binary file data/image_1_data/layer_11_output.bin
+xsdb% Opened binary file data/image_2.bin
+xsdb% Opened binary file data/image_2_data/layer_11_output.bin
+xsdb% BENCH mode=tiled block=16 threads=8 iters=100 mean_ms=1413.544 min_ms=1413.150 conv2_ms=865.899 pass=100/100
+xsdb% LAYERS_MS 76.046 865.899 2.594 132.417 235.697 0.940 40.960 51.935 0.203 0.034 6.193 0.599 0.024
+xsdb% Opened binary file data/image_0.bin
+xsdb% Opened binary file data/image_0_data/layer_11_output.bin
+xsdb% Opened binary file data/image_1.bin
+xsdb% Opened binary file data/image_1_data/layer_11_output.bin
+xsdb% Opened binary file data/image_2.bin
+xsdb% Opened binary file data/image_2_data/layer_11_output.bin
+xsdb% BENCH mode=tiled block=32 threads=8 iters=100 mean_ms=1310.561 min_ms=1310.201 conv2_ms=812.336 pass=100/100
+xsdb% LAYERS_MS 69.149 812.336 2.596 121.820 211.484 0.940 36.828 48.351 0.204 0.033 6.194 0.599 0.024
+
+
+----- ML::runZedboardSweep() COMPLETE -----
+
+
+----- STARTING FILE TRANSFER SERVER -----
+IP:      192.168.1.2
+Netmask: 255.255.255.0
+Gateway: 192.168.1.1
+MAC:     00:0A:35:00:01:02
+xsdb% Start PHY autonegotiation 
+xsdb% Waiting for PHY to complete autonegotiation.
+xsdb% 
