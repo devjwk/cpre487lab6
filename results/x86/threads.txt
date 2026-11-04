@@ -1,0 +1,40 @@
+BENCH simd=sse2 mode=threaded block=16 threads=1 iters=100 mean_ms=13.701 min_ms=11.693 conv2_ms=7.624 pass=100/100
+LAYERS_MS 1.410 7.624 0.094 1.384 2.076 0.048 0.443 0.514 0.022 0.001 0.076 0.006 0.001
+BENCH simd=native mode=threaded block=16 threads=1 iters=100 mean_ms=12.528 min_ms=10.677 conv2_ms=6.776 pass=100/100
+LAYERS_MS 1.299 6.776 0.089 1.299 2.013 0.049 0.431 0.470 0.025 0.001 0.069 0.006 0.001
+BENCH simd=sse2 mode=threaded block=16 threads=2 iters=100 mean_ms=8.645 min_ms=6.953 conv2_ms=4.899 pass=100/100
+LAYERS_MS 0.754 4.899 0.094 0.852 1.332 0.046 0.263 0.302 0.008 0.000 0.086 0.007 0.001
+BENCH simd=native mode=threaded block=16 threads=2 iters=100 mean_ms=7.712 min_ms=5.931 conv2_ms=4.458 pass=100/100
+LAYERS_MS 0.771 4.458 0.089 0.719 1.115 0.045 0.211 0.231 0.006 0.000 0.059 0.005 0.001
+BENCH simd=sse2 mode=threaded block=16 threads=4 iters=100 mean_ms=4.709 min_ms=3.811 conv2_ms=2.611 pass=100/100
+LAYERS_MS 0.396 2.611 0.097 0.450 0.723 0.046 0.146 0.165 0.006 0.000 0.061 0.006 0.001
+BENCH simd=native mode=threaded block=16 threads=4 iters=100 mean_ms=4.228 min_ms=3.255 conv2_ms=2.445 pass=100/100
+LAYERS_MS 0.356 2.445 0.094 0.384 0.580 0.041 0.130 0.134 0.005 0.000 0.053 0.005 0.001
+BENCH simd=sse2 mode=threaded block=16 threads=8 iters=100 mean_ms=2.836 min_ms=2.428 conv2_ms=1.572 pass=100/100
+LAYERS_MS 0.219 1.572 0.076 0.255 0.401 0.025 0.108 0.115 0.005 0.000 0.053 0.006 0.001
+BENCH simd=native mode=threaded block=16 threads=8 iters=100 mean_ms=2.416 min_ms=2.091 conv2_ms=1.347 pass=100/100
+LAYERS_MS 0.196 1.347 0.068 0.217 0.307 0.023 0.095 0.105 0.005 0.000 0.047 0.004 0.001
+BENCH simd=sse2 mode=threaded block=16 threads=12 iters=100 mean_ms=2.544 min_ms=2.232 conv2_ms=1.251 pass=100/100
+LAYERS_MS 0.228 1.251 0.071 0.248 0.347 0.024 0.145 0.155 0.005 0.000 0.061 0.006 0.001
+BENCH simd=native mode=threaded block=16 threads=12 iters=100 mean_ms=2.207 min_ms=1.858 conv2_ms=1.027 pass=100/100
+LAYERS_MS 0.205 1.027 0.070 0.239 0.294 0.023 0.140 0.149 0.005 0.000 0.049 0.004 0.001
+BENCH simd=sse2 mode=threaded block=16 threads=16 iters=100 mean_ms=2.337 min_ms=2.080 conv2_ms=0.975 pass=100/100
+LAYERS_MS 0.254 0.975 0.068 0.248 0.305 0.025 0.191 0.198 0.005 0.000 0.061 0.006 0.001
+BENCH simd=native mode=threaded block=16 threads=16 iters=100 mean_ms=2.063 min_ms=1.912 conv2_ms=0.802 pass=100/100
+LAYERS_MS 0.234 0.802 0.065 0.250 0.267 0.023 0.171 0.194 0.005 0.000 0.047 0.004 0.001
+BENCH simd=sse2 mode=threaded block=16 threads=20 iters=100 mean_ms=2.457 min_ms=2.141 conv2_ms=0.963 pass=100/100
+LAYERS_MS 0.246 0.963 0.069 0.283 0.325 0.023 0.220 0.244 0.005 0.000 0.068 0.008 0.001
+BENCH simd=native mode=threaded block=16 threads=20 iters=100 mean_ms=2.255 min_ms=2.009 conv2_ms=0.787 pass=100/100
+LAYERS_MS 0.246 0.787 0.066 0.276 0.312 0.023 0.245 0.233 0.005 0.000 0.055 0.005 0.001
+BENCH simd=sse2 mode=threaded block=16 threads=24 iters=100 mean_ms=2.827 min_ms=2.527 conv2_ms=1.077 pass=100/100
+LAYERS_MS 0.300 1.077 0.072 0.334 0.371 0.024 0.271 0.285 0.005 0.000 0.079 0.007 0.001
+BENCH simd=native mode=threaded block=16 threads=24 iters=100 mean_ms=2.468 min_ms=2.220 conv2_ms=0.832 pass=100/100
+LAYERS_MS 0.284 0.832 0.065 0.304 0.327 0.023 0.272 0.282 0.005 0.000 0.066 0.006 0.001
+BENCH simd=sse2 mode=threaded block=16 threads=32 iters=100 mean_ms=3.080 min_ms=2.815 conv2_ms=0.953 pass=100/100
+LAYERS_MS 0.389 0.953 0.071 0.405 0.402 0.025 0.370 0.373 0.005 0.000 0.077 0.008 0.001
+BENCH simd=native mode=threaded block=16 threads=32 iters=100 mean_ms=2.771 min_ms=2.578 conv2_ms=0.730 pass=100/100
+LAYERS_MS 0.376 0.730 0.063 0.396 0.389 0.023 0.357 0.363 0.005 0.000 0.061 0.006 0.001
+BENCH simd=sse2 mode=threaded block=16 threads=64 iters=100 mean_ms=5.064 min_ms=4.722 conv2_ms=0.999 pass=100/100
+LAYERS_MS 0.754 0.999 0.075 0.814 0.774 0.023 0.761 0.747 0.005 0.000 0.096 0.014 0.001
+BENCH simd=native mode=threaded block=16 threads=64 iters=100 mean_ms=4.940 min_ms=4.523 conv2_ms=0.939 pass=100/100
+LAYERS_MS 0.747 0.939 0.064 0.776 0.773 0.022 0.760 0.756 0.005 0.000 0.087 0.009 0.001

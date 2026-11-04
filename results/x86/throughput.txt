@@ -1,0 +1,9 @@
+THROUGHPUT mode=reordered workers=1 conv_threads=1 iters=1000 total_ms=8230.356 img_per_s=121.501 pass=1000/1000
+THROUGHPUT mode=reordered workers=2 conv_threads=1 iters=1000 total_ms=4327.168 img_per_s=231.098 pass=1000/1000
+THROUGHPUT mode=reordered workers=4 conv_threads=1 iters=1000 total_ms=2205.890 img_per_s=453.332 pass=1000/1000
+THROUGHPUT mode=reordered workers=8 conv_threads=1 iters=1000 total_ms=1137.553 img_per_s=879.080 pass=1000/1000
+THROUGHPUT mode=reordered workers=12 conv_threads=1 iters=1000 total_ms=1171.118 img_per_s=853.885 pass=1000/1000
+THROUGHPUT mode=reordered workers=16 conv_threads=1 iters=1000 total_ms=1009.615 img_per_s=990.476 pass=1000/1000
+THROUGHPUT mode=reordered workers=20 conv_threads=1 iters=1000 total_ms=889.611 img_per_s=1124.086 pass=1000/1000
+THROUGHPUT mode=reordered workers=24 conv_threads=1 iters=1000 total_ms=890.658 img_per_s=1122.766 pass=1000/1000
+THROUGHPUT mode=reordered workers=32 conv_threads=1 iters=1000 total_ms=876.406 img_per_s=1141.024 pass=1000/1000

@@ -1,0 +1,16 @@
+BENCH simd=none mode=naive block=16 threads=8 iters=100 mean_ms=58.002 min_ms=57.058 conv2_ms=33.695 pass=100/100
+LAYERS_MS 4.240 33.695 0.058 5.660 9.686 0.021 1.703 2.148 0.005 0.000 0.764 0.020 0.001
+BENCH simd=none mode=reordered block=16 threads=8 iters=100 mean_ms=29.691 min_ms=28.855 conv2_ms=18.165 pass=100/100
+LAYERS_MS 2.155 18.165 0.058 2.761 4.578 0.021 0.795 0.998 0.005 0.000 0.139 0.015 0.001
+BENCH simd=sse2 mode=naive block=16 threads=8 iters=100 mean_ms=58.245 min_ms=57.052 conv2_ms=33.775 pass=100/100
+LAYERS_MS 4.223 33.775 0.057 5.714 9.795 0.020 1.714 2.171 0.005 0.000 0.750 0.020 0.001
+BENCH simd=sse2 mode=reordered block=16 threads=8 iters=100 mean_ms=11.411 min_ms=10.593 conv2_ms=7.281 pass=100/100
+LAYERS_MS 0.815 7.281 0.058 0.959 1.602 0.021 0.278 0.340 0.005 0.000 0.047 0.005 0.001
+BENCH simd=avx mode=naive block=16 threads=8 iters=100 mean_ms=61.583 min_ms=60.432 conv2_ms=35.835 pass=100/100
+LAYERS_MS 5.325 35.835 0.055 5.742 9.913 0.019 1.719 2.213 0.004 0.000 0.733 0.023 0.001
+BENCH simd=avx mode=reordered block=16 threads=8 iters=100 mean_ms=7.722 min_ms=7.631 conv2_ms=4.597 pass=100/100
+LAYERS_MS 0.564 4.597 0.055 0.743 1.232 0.019 0.214 0.249 0.004 0.000 0.041 0.003 0.001
+BENCH simd=native mode=naive block=16 threads=8 iters=100 mean_ms=101.517 min_ms=99.727 conv2_ms=63.619 pass=100/100
+LAYERS_MS 5.415 63.619 0.057 8.736 16.376 0.021 2.844 3.649 0.004 0.000 0.759 0.035 0.001
+BENCH simd=native mode=reordered block=16 threads=8 iters=100 mean_ms=8.249 min_ms=8.150 conv2_ms=5.138 pass=100/100
+LAYERS_MS 0.535 5.138 0.058 0.739 1.252 0.020 0.217 0.241 0.004 0.000 0.041 0.003 0.001
