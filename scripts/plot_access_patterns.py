@@ -1,11 +1,4 @@
-"""Access-pattern charts for conv2 (60x60x32 input, 5x5x32x32 weights, 56x56x32 output), section 3.1.2.
-
-    python3 scripts/plot_access_patterns.py      # writes results/plots/access_{weights,input,output}.png
-
-Each chart shows the element index touched by every multiply-accumulate of the first two output pixels,
-for the naive loop order (p, q, m, r, s, c) and the reordered one (p, q, r, s, c, m) used by computeReordered.
-The indices follow the C++ code exactly: input (H, W, C), weights (R, S, C, M), output (P, Q, M), all row-major.
-"""
+"""conv2 access patterns (first 2 output pixels), naive vs reordered loop order -> results/plots/access_*.png"""
 from pathlib import Path
 
 import matplotlib
@@ -17,12 +10,11 @@ import numpy as np
 W, C = 60, 32
 Q, M = 56, 32
 R = S = 5
-PIXELS = 2  # output pixels (p=0, q=0 and q=1)
+PIXELS = 2
 OUT = Path(__file__).resolve().parent.parent / "results" / "plots"
 
 
 def trace(order):
-    """Element indices (weight, input, output) of each MAC, in program order."""
     w, x, o = [], [], []
     for pix in range(PIXELS):
         p, q = divmod(pix, Q)
@@ -38,7 +30,6 @@ def trace(order):
 
 
 def stride_summary(idx):
-    """Share of consecutive accesses that stay within one 32-byte cache line (8 floats) of the previous one."""
     d = np.abs(np.diff(idx))
     return (d < 8).mean()
 

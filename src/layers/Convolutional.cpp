@@ -16,7 +16,6 @@ namespace ML {
 // --- Begin Student Code ---
 
 // Compute the convultion for the layer data
-// Lab 6 baseline ("before"): the innermost loop walks the weights with a stride of M floats
 void ConvolutionalLayer::computeNaive(const LayerData& dataIn) const {
     // Dimensions, named as in the textbook: input (H, W, C), weights (R, S, C, M), output (P, Q, M)
     const dimVec& inDims = getInputParams().dims;
@@ -51,10 +50,7 @@ void ConvolutionalLayer::computeNaive(const LayerData& dataIn) const {
     }
 }
 
-// Reordered loops for output pixels [pixBegin, pixEnd) (pixel = p * Q + q).
-// m is now the innermost loop, so every load and store in it is unit-stride: one input value is reused M times
-// from a register, and a weight row (r, s, c, 0..M-1) and the output pixel (p, q, 0..M-1) are contiguous.
-// The sum is still added in the order bias, then r, s, c, so the result is bit-identical to computeNaive.
+// Loop order p, q, r, s, c, m for output pixels [pixBegin, pixEnd)
 static void convPixels(const fp32* __restrict__ in, const fp32* __restrict__ weights, const fp32* __restrict__ bias,
                        fp32* __restrict__ out, const size W, const size C, const size Q, const size M, const size R,
                        const size S, const size pixBegin, const size pixEnd) {
@@ -91,10 +87,9 @@ void ConvolutionalLayer::computeReordered(const LayerData& dataIn) const {
                outDims[0] * outDims[1]);
 }
 
-// Compute the convolution using threads: the output pixels are split into NUM_THREADS equal ranges
+// Compute the convolution using threads
 void ConvolutionalLayer::computeThreaded(const LayerData& dataIn) const {
 #ifdef ZEDBOARD
-    // Bare metal: no threads
     computeReordered(dataIn);
 #else
     const dimVec& inDims = getInputParams().dims;
@@ -119,9 +114,7 @@ void ConvolutionalLayer::computeThreaded(const LayerData& dataIn) const {
 #endif
 }
 
-// Compute the convolution using a tiled approach.
-// The output channels (m) and the input channels (c) are split into blocks of TILE_SIZE, so the weights used by
-// one (m block, c block) pair, R * S * B * B floats, stay in the L1 cache while every output pixel is swept.
+// Compute the convolution using a tiled approach (blocks of TILE_SIZE output and input channels)
 void ConvolutionalLayer::computeTiled(const LayerData& dataIn) const {
     const dimVec& inDims = getInputParams().dims;
     const dimVec& outDims = getOutputParams().dims;
@@ -170,6 +163,6 @@ void ConvolutionalLayer::computeTiled(const LayerData& dataIn) const {
     for (size i = 0; i < P * Q * M; i++) out[i] = out[i] > 0 ? out[i] : 0;
 }
 
-// SIMD comes from the compiler flags (make SIMD=...), applied to the reordered loops whose inner loop vectorizes
+// Compute the convolution using SIMD (vectorized by the compiler flags)
 void ConvolutionalLayer::computeSIMD(const LayerData& dataIn) const { computeReordered(dataIn); }
 }  // namespace ML

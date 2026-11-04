@@ -27,12 +27,12 @@ The Lab 2 C++ inference framework ([devjwk/cpre487lab2](https://github.com/devjw
 make                                   # same flags as Lab 2 (-O3)
 ./build/ml                             # Lab 2 layer-by-layer tests
 ./build/ml check                       # every variant vs. naive, layer by layer (several block / thread counts)
-./build/ml bench <naive|reordered|tiled|threaded|simd> [iters=100] [block=16] [threads=8]
-./build/ml throughput <mode> [iters=300] [workers=8] [conv_threads=1]
+./build/ml bench <naive|reordered|tiled|threaded|simd> [iters=100] [block=16] [threads=8] [val]
+./build/ml throughput <mode> [iters=300] [workers=8] [conv_threads=1] [val]
 make BDIR=build_avx SIMD=avx ASM=true  # one build folder per SIMD setting
 ```
 
-`bench` prints one line per run, e.g. `BENCH mode=reordered block=16 threads=8 iters=100 mean_ms=... min_ms=... conv2_ms=... pass=100/100`, then `LAYERS_MS` with the mean time of each of the 13 layers. `pass` counts inferences whose output matches TensorFlow within 0.001.
+`bench` prints one line per run, e.g. `BENCH mode=reordered block=16 threads=8 iters=100 mean_ms=... min_ms=... conv2_ms=... pass=100/100`, then `LAYERS_MS` with the mean time of each of the 13 layers. `pass` counts inferences whose output matches TensorFlow within 0.001. With `val`, the inputs are the first `iters` (up to 1,000) Lab 1 validation images in `data/val/` (from the Lab 4/5 export, 64×64×3 uint8 with labels); they have no TensorFlow layer outputs, so the reference is the reordered loops, which `ml check` shows are bit-identical to the naive ones. A `VAL images=... top1=...` line reports the top-1 hits of that reference (235/1000 = 23.5%, the same as in Lab 5).
 
 ### Lab computer
 

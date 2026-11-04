@@ -26,8 +26,7 @@ EXE_DEBUG = $(BIN)/ml_debug
 	CC_ALL = -Wall -Werror -pedantic -std=c++11
 	CC_DEBUG = -g -Og
 	CC_OPT_FLAGS = -O3
-	# Lab 6: SIMD=none|sse2|avx|avx512|native (true = native). Without SIMD the compiler defaults apply
-	# (on x86-64 that already includes SSE2). none turns off auto-vectorization, so only scalar SSE (addss, mulss) is left.
+	# SIMD=none|sse2|avx|avx512|native
 	SIMD_none = -fno-tree-vectorize -fno-tree-slp-vectorize
 	SIMD_sse2 = -msse2
 	SIMD_avx = -mavx

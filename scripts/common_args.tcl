@@ -9,9 +9,9 @@ set option {
   {proc_name.arg      "ps7_cortexa9_0"          "prorcessor name"}
   {template.arg       "Empty Application (C++)" "application project template"}
   {prepare_debug.arg  "no"                      "(flash) prepare for debugging instead of flashing"}
-  {simd.arg           "no"                      "(create) yes: compile for NEON (Lab 6)"}
+  {simd.arg           "no"                      "(create) yes: compile for NEON"}
   {asm.arg            "no"                      "(create) yes: keep the assembly (.s) next to each object"}
-  {zed_iters.arg      "100"                     "(create) inferences per configuration in the Lab 6 sweep"}
+  {zed_iters.arg      "100"                     "(create) inferences per configuration"}
 }
 
 set usage "<arguments>"

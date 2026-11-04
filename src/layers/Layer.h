@@ -158,7 +158,6 @@ class Layer {
     virtual void computeTiled(const LayerData& dataIn) const = 0;
     virtual void computeSIMD(const LayerData& dataIn) const = 0;
 
-    // Lab 6: cache-friendly loop order; layers without one fall back to the naive loops
     virtual void computeReordered(const LayerData& dataIn) const { computeNaive(dataIn); }
 
    private:

@@ -56,7 +56,6 @@ class DenseLayer : public Layer {
         }
     }
 
-    // Lab 6: n outer, m inner, so the weights (N, M) are read in storage order instead of with a stride of M
     virtual void computeReordered(const LayerData& dataIn) const override {
         const size N = getInputParams().dims[0];
         const size M = getOutputParams().dims[0];
@@ -76,7 +75,6 @@ class DenseLayer : public Layer {
         }
     }
 
-    // The dense layers are under 1% of the MACs, so the other variants use the reordered loops
     virtual void computeThreaded(const LayerData& dataIn) const override { computeReordered(dataIn); }
     virtual void computeTiled(const LayerData& dataIn) const override { computeReordered(dataIn); }
     virtual void computeSIMD(const LayerData& dataIn) const override { computeReordered(dataIn); }

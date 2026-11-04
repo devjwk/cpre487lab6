@@ -1,10 +1,4 @@
-"""Charts for the Lab 6 report from the BENCH/THROUGHPUT lines in results/.
-
-    python3 scripts/plot_lab6.py          # writes results/plots/*.png and prints the tables
-
-Reads results/x86/{tiling,threads,simd,throughput}.txt (scripts/run_lab6_x86.sh) and
-results/zedboard/{sweep,sweep_neon}.txt (the ZedBoard serial output). Missing files are skipped.
-"""
+"""Tables and charts from results/x86 and results/zedboard -> results/plots."""
 import re
 import sys
 from pathlib import Path
@@ -20,12 +14,11 @@ PLOTS = RES / "plots"
 
 
 def parse(path, tag):
-    """Return a list of dicts, one per line starting with tag (BENCH or THROUGHPUT)."""
     rows = []
     if not path.exists():
         return rows
     for line in path.read_text(errors="replace").splitlines():
-        start = line.find(tag + " ")  # the ZedBoard log can prefix lines with "xsdb% "
+        start = line.find(tag + " ")
         if start < 0:
             continue
         row = dict(re.findall(r"(\w+)=(\S+)", line[start:]))
@@ -156,8 +149,6 @@ def zed_simd():
     table("ZedBoard: VFP (default) vs NEON", ["Version", "VFP ms", "NEON ms", "Speedup"], out)
 
 
-# Floating-point multiply/add/FMA mnemonics, scalar vs packed (x86) and VFP vs NEON (ARM).
-# Width comes from the register: xmm = 128 bit (4 floats), ymm = 256 bit (8), zmm = 512 bit (16); ARM s = 1 float, q = 4.
 ASM_PATTERNS = {
     "scalar (ss)": r"\b(v?(mul|add|fmadd\d*)ss)\b",
     "packed xmm": r"\b(v?(mul|add|fmadd\d*)ps)\b[^\n]*%xmm",
@@ -169,7 +160,6 @@ ASM_PATTERNS = {
 
 
 def asm_summary():
-    """Count FP instructions in each Convolutional.s and print a snippet around the widest one."""
     files = (sorted(ROOT.glob("build_*/layers/Convolutional.s")) + sorted((RES / "x86").glob("asm_*.s"))
              + sorted((RES / "zedboard").glob("asm_*.s")))
     if not files:
